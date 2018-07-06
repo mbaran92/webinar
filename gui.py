@@ -11,14 +11,16 @@ matplotlib.use("TkAgg")
 # from matplotlib.figure import Figure
 # import matplotlib.animation as animation
 # from matplotlib import style
+# from matplotlib import pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib.ticker as mticker
 #
 # import urllib
 # import json
 #
 # import pandas as pd
 # import numpy as np
-#
-# from matplotlib import pyplot as plt
+
 
 LARGE_FONT = ("Verdana", 12)
 NORM_FONT = ("Verdana", 10)
@@ -27,7 +29,6 @@ SMALL_FONT = ("Verdana", 8)
 # style.use("ggplot")
 # f = Figure()
 # a = f.add_subplot(111)
-
 
 
 def popupmsg(msg):
@@ -40,6 +41,8 @@ def popupmsg(msg):
     popup.mainloop()
 
 def tutorial():
+    # not program-ending error result
+
     # def leavemini(what):
     #     what.destroy()
 
@@ -89,20 +92,27 @@ class ContactsApp(tk.Tk):
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
 
+        self.frames = {}
+        for F in (StartPage, SearchContactsPage, AddContactPage, RemoveContactPage, UpdateContactPage):
+            frame = F(container, self)
+            self.frames[F] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
+        self.show_frame(StartPage)
+
         menubar = tk.Menu(container)
         filemenu = tk.Menu(menubar,tearoff=0)
+        filemenu.add_command(label="Home", command=lambda: self.show_frame(StartPage))
         filemenu.add_command(label="Save settings",command = lambda: popupmsg("Not supported just yet!"))
         filemenu.add_separator()
-        filemenu.add_command(label="Exit", command=quit)
+        filemenu.add_command(label="Quit App", command=quit)
         menubar.add_cascade(label="File", menu=filemenu)
 
         actionsmenu = tk.Menu(menubar, tearoff=0)
-        actionsmenu.add_command(label="Add New Contact", command=lambda: popupmsg("This will soon let you add a new contact."))
-        actionsmenu.add_command(label="Remove Contact", command=lambda: popupmsg("This will soon let you remove a contact."))
-        actionsmenu.add_command(label="Update Contact(s)",
-                                command=lambda: popupmsg("This will soon let you update a contact record (e.g. add note)."))
+        actionsmenu.add_command(label="Search Contacts", command=lambda: self.show_frame(SearchContactsPage))
         actionsmenu.add_separator()
-        actionsmenu.add_command(label="Find Contact(s)", command=lambda: popupmsg("This will soon let you search the database for a contact."))
+        actionsmenu.add_command(label="Add New Contact", command=lambda: self.show_frame(AddContactPage))
+        actionsmenu.add_command(label="Remove Contact", command=lambda: popupmsg("This will soon let you remove a contact."))
+        actionsmenu.add_command(label="Update Contact(s)", command=lambda: popupmsg("This will soon let you update a contact record (e.g. add note)."))
         menubar.add_cascade(label="Actions", menu=actionsmenu)
 
         helpmenu = tk.Menu(menubar, tearoff=0)
@@ -111,12 +121,7 @@ class ContactsApp(tk.Tk):
 
         tk.Tk.config(self,menu=menubar)
 
-        self.frames = {}
-        for F in (StartPage, SearchContactsPage, ContactPage, AddContactPage):
-            frame = F(container, self)
-            self.frames[F] = frame
-            frame.grid(row=0, column=0, sticky="nsew")
-        self.show_frame(StartPage)
+
 
     def show_frame(self, cont):
         frame = self.frames[cont]
@@ -129,36 +134,13 @@ class StartPage(tk.Frame):
         label = tk.Label(self, text="uGRIDD Webinar Contacts Application", font=LARGE_FONT)
         label.pack(pady=10, padx=10)
 
-        button1 = tk.Button(self, text="Enter", command=lambda: controller.show_frame(ContactPage))
-        button1.pack()
-
-        button2 = tk.Button(self, text="Quit", command=quit)
-        button2.pack()
-
-class ContactPage(tk.Frame):
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self,parent)
-        label = tk.Label(self, text="Contact Page", font=LARGE_FONT)
-        label.pack(pady=10, padx=10)
-
-        button1 = tk.Button(self, text="Back to Home", command=lambda: controller.show_frame(StartPage))
-        button1.pack()
-        button2 = tk.Button(self, text="Search Contacts", command=lambda: controller.show_frame(SearchContactsPage))
-        button2.pack()
-        button3 = tk.Button(self, text="Add Contacts", command=lambda: controller.show_frame(AddContactPage))
-        button3.pack()
-
+        # ADD WELCOME TEXT HERE
 
 class SearchContactsPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         pagelabel = tk.Label(self, text="Search Contacts", font=LARGE_FONT)
         pagelabel.pack(pady=10, padx=10)
-
-        button1 = tk.Button(self, text="Home", command=lambda: controller.show_frame(StartPage))
-        button1.pack()
-        button2 = tk.Button(self, text="Contacts Page", command=lambda: controller.show_frame(ContactPage))
-        button2.pack()
 
         def fetch(entries):
             for entry in entries:
@@ -208,11 +190,6 @@ class AddContactPage(tk.Frame):
         pagelabel = tk.Label(self, text="Add Contact", font=LARGE_FONT)
         pagelabel.grid(row=0, pady=10, padx=10)
 
-        button1 = tk.Button(self, text="Home", command=lambda: controller.show_frame(StartPage))
-        button1.grid(row=1, column=0)
-        button2 = tk.Button(self, text="Contacts Page", command=lambda: controller.show_frame(ContactPage))
-        button2.grid(row=1, column=1)
-
         labelEmail = tk.Label(self, width=20, text="E-mail (Username)", anchor='w')
         entryEmail = tk.Entry(self)
         labelEmail.grid(row=3, column=0)
@@ -223,11 +200,21 @@ class AddContactPage(tk.Frame):
         def callback():
             email = entryEmail.get()
             if re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                print("Added Email: "+ email)
                 popupmsg("Added Email:" + email)
             else:
-                print("Invalid E-mail: " + email)
+                popupmsg("Invalid E-mail: " + email)
 
+class RemoveContactPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self,parent)
+        label = tk.Label(self, text="Remove Contact Page", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
+
+class UpdateContactPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self,parent)
+        label = tk.Label(self, text="Remove Contact Page", font=LARGE_FONT)
+        label.pack(pady=10, padx=10)
 
 app = ContactsApp()
 app.geometry("600x300")
