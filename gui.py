@@ -127,39 +127,40 @@ class SearchContactsPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         pagelabel = tk.Label(self, text="Search Contacts", font=LARGE_FONT)
-        pagelabel.grid(row=0, columnspan=4, pady=10, padx=10)
+        pagelabel.grid(row=0, columnspan=2, pady=10, padx=10)
+        #self.grid_columnconfigure(1, weight=1)
 
-        labelEmail = tk.Label(self, width=20, text="E-mail (Username)", anchor='w').grid(row=2, column=0, columnspan=2)
+        labelEmail = tk.Label(self, width=20, text="E-mail (Username)", anchor='w').grid(row=2, column=0)
         entryEmail = tk.Entry(self)
-        entryEmail.grid(row=2, column=2, columnspan=2)
-        labelFirstName = tk.Label(self, width=20, text="First Name", anchor='w').grid(row=3, column=0, columnspan=2)
+        entryEmail.grid(row=2, column=1, width=20)
+        labelFirstName = tk.Label(self, width=20, text="First Name", anchor='w').grid(row=3, column=0)
         entryFirstName = tk.Entry(self)
-        entryFirstName.grid(row=3, column=2, columnspan=2)
-        labelLastName = tk.Label(self, width=20, text="Last Name", anchor='w').grid(row=4, column=0, columnspan=2)
+        entryFirstName.grid(row=3, column=1)
+        labelLastName = tk.Label(self, width=20, text="Last Name", anchor='w').grid(row=4, column=0)
         entryLastName = tk.Entry(self)
-        entryLastName.grid(row=4, column=2, columnspan=2)
-        labelSource = tk.Label(self, width=20, text="Source", anchor='w').grid(row=5, column=0, columnspan=2)
+        entryLastName.grid(row=4, column=1)
+        labelSource = tk.Label(self, width=20, text="Source", anchor='w').grid(row=5, column=0)
         entrySource = tk.Entry(self)
-        entrySource.grid(row=5, column=2, columnspan=2)
-        labelUserSince = tk.Label(self, width=20, text="Account Since", anchor='w').grid(row=6, column=0, columnspan=2)
+        entrySource.grid(row=5, column=1)
+        labelUserSince = tk.Label(self, width=20, text="Account Since", anchor='w').grid(row=6, column=0)
         entryUserSince = tk.Entry(self)
-        entryUserSince.grid(row=6, column=2, columnspan=2)
+        entryUserSince.grid(row=6, column=1)
         entryUserSince.insert(tk.END, "YYYY-MM-DD hh:mm:ss")
-        labelContactList = tk.Label(self, width=20, text="Eventbrite Contact List", anchor='w').grid(row=7, column=0, columnspan=2)
+        labelContactList = tk.Label(self, width=20, text="Eventbrite Contact List", anchor='w').grid(row=7, column=0)
         entryContactList = tk.Entry(self)
-        entryContactList.grid(row=7, column=2, columnspan=2)
-        labelAddedDate = tk.Label(self, width=20, text="Added Date", anchor='w').grid(row=8, column=0,columnspan=2)
+        entryContactList.grid(row=7, column=1)
+        labelAddedDate = tk.Label(self, width=20, text="Added Date", anchor='w').grid(row=8, column=0)
         entryAddedDate = tk.Entry(self)
-        entryAddedDate.grid(row=8, column=2, columnspan=2)
-        labelRemovedReason = tk.Label(self, width=20, text="Removed Reason", anchor='w').grid(row=9, column=0, columnspan=2)
+        entryAddedDate.grid(row=8, column=1)
+        labelRemovedReason = tk.Label(self, width=20, text="Removed Reason", anchor='w').grid(row=9, column=0)
         entryRemovedReason = tk.Entry(self)
-        entryRemovedReason.grid(row=9, column=2, columnspan=2)
-        labelRemovedDate = tk.Label(self, width=20, text="Remove Date", anchor='w').grid(row=10, column=0,columnspan=2)
+        entryRemovedReason.grid(row=9, column=1)
+        labelRemovedDate = tk.Label(self, width=20, text="Remove Date", anchor='w').grid(row=10, column=0)
         entryRemovedDate = tk.Entry(self)
-        entryRemovedDate.grid(row=10, column=2, columnspan=2)
-        labelNote = tk.Label(self, width=20, text="Note", anchor='w').grid(row=11, column=0,columnspan=2)
+        entryRemovedDate.grid(row=10, column=1)
+        labelNote = tk.Label(self, width=20, text="Note", anchor='w').grid(row=11, column=0)
         entryNote = tk.Entry(self)
-        entryNote.grid(row=11, column=2, columnspan=2)
+        entryNote.grid(row=11, column=1)
 
         buttonSubmit = tk.Button(self, text="Submit", command=lambda: find())
         buttonSubmit.grid(row=15)
@@ -169,31 +170,33 @@ class SearchContactsPage(tk.Frame):
             entries = [entryEmail.get(),entryFirstName.get(),entryLastName.get(),entrySource.get(),entryUserSince.get(),entryContactList.get(),entryAddedDate.get(),entryRemovedReason.get(),entryRemovedDate.get(),entryNote.get()]
 
             workingDBTable = "contactstest"
-            sqlStatement = "SELECT * FROM "+ workingDBTable +" WHERE"
+            sql = "SELECT * FROM "+ workingDBTable +" WHERE"
 
             if len(entries) == entries.count(""): popupmsg("No search criteria selected.")
             else: pass
 
             i = 0
             whereClause = 0
-            values = ""
+            val = []
             while i<len(entries):
                 if entries[i] =="":pass
                 else:
                     whereClause += 1
                     if whereClause >= 2:
-                        sqlStatement = sqlStatement + " AND"
-                        values = values + ","
+                        sql = sql + " AND"
                     else: pass
-                    sqlStatement = sqlStatement + " " + contactTableFields[i] + "=%s"
-                    values = values + "'"+ entries[i] + "'"
+                    sql = sql + " " + contactTableFields[i] + "=%s"
+                    val.append(entries[i])
                 i += 1
-            sql = '"' + sqlStatement + '"'
-            val = '[(' + values + ')]'
+            sql = sql + " LIMIT 10"
             cursor.execute(sql, val)
             result = cursor.fetchall()
-            print(result)
-            message = 'Code for SQL statement:\nsql = ' + sql + '\nval = ' + val + '\ncursor.execute(sql, val)'
+            message = "Search Result:"
+            if result == []:
+                message += "\n0 matched records."
+            else:
+                for record in result:
+                    message += "\n" + str(record)
             popupmsg(message)
 
 class AddContactPage(tk.Frame):
