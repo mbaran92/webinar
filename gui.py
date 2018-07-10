@@ -1,44 +1,33 @@
 import tkinter as tk
+from tkinter import messagebox
 from tkinter import ttk
-
-import mysql.connector
 import datetime
+from datetime import datetime
 import re
-
-import matplotlib
-matplotlib.use("TkAgg")
-# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-# from matplotlib.figure import Figure
-# import matplotlib.animation as animation
-# from matplotlib import style
-# from matplotlib import pyplot as plt
-import matplotlib.dates as mdates
-import matplotlib.ticker as mticker
-#
-# import urllib
-# import json
-#
-# import pandas as pd
-# import numpy as np
-
+import connection
 
 LARGE_FONT = ("Verdana", 12)
 NORM_FONT = ("Verdana", 10)
 SMALL_FONT = ("Verdana", 8)
 
-# style.use("ggplot")
-# f = Figure()
-# a = f.add_subplot(111)
-
+contactTableFields = ["EmailAddress","FirstName","LastName","Source","UserSince","EventbriteContactList","AddedDate","RemovedReason","RemoveDate","Note"]
+myDB = connection.OpenConnection()
+cursor = connection.GetCursor(myDB)
 
 def popupmsg(msg):
     popup = tk.Tk()
     popup.wm_title("Message")
     label = ttk.Label(popup, text=msg, font=NORM_FONT)
     label.pack(side="top", fill="x", pady=10)
-    B1 = ttk.Button(popup, text="Okay", command = popup.destroy)
-    B1.pack()
+    okayButton = ttk.Button(popup, text="Okay", command = popup.destroy)
+    okayButton.pack()
     popup.mainloop()
+
+
+def ask_quit():
+    if messagebox.askokcancel("Quit", "Are you sure you want to quit the application?"):
+        connection.CloseConnection(myDB)
+        quit()
 
 def tutorial():
     # not program-ending error result
@@ -104,7 +93,7 @@ class ContactsApp(tk.Tk):
         filemenu.add_command(label="Home", command=lambda: self.show_frame(StartPage))
         filemenu.add_command(label="Save settings",command = lambda: popupmsg("Not supported just yet!"))
         filemenu.add_separator()
-        filemenu.add_command(label="Quit App", command=quit)
+        filemenu.add_command(label="Quit App", command=ask_quit)
         menubar.add_cascade(label="File", menu=filemenu)
 
         actionsmenu = tk.Menu(menubar, tearoff=0)
@@ -120,8 +109,6 @@ class ContactsApp(tk.Tk):
         menubar.add_cascade(label="Help", menu=helpmenu)
 
         tk.Tk.config(self,menu=menubar)
-
-
 
     def show_frame(self, cont):
         frame = self.frames[cont]
@@ -140,69 +127,161 @@ class SearchContactsPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         pagelabel = tk.Label(self, text="Search Contacts", font=LARGE_FONT)
-        pagelabel.pack(pady=10, padx=10)
+        pagelabel.grid(row=0, columnspan=4, pady=10, padx=10)
 
-        def fetch(entries):
-            for entry in entries:
-                field = entry[0]
-                text = entry[1].get()
-                print('%s: "%s"' % (field, text))
+        labelEmail = tk.Label(self, width=20, text="E-mail (Username)", anchor='w').grid(row=2, column=0, columnspan=2)
+        entryEmail = tk.Entry(self)
+        entryEmail.grid(row=2, column=2, columnspan=2)
+        labelFirstName = tk.Label(self, width=20, text="First Name", anchor='w').grid(row=3, column=0, columnspan=2)
+        entryFirstName = tk.Entry(self)
+        entryFirstName.grid(row=3, column=2, columnspan=2)
+        labelLastName = tk.Label(self, width=20, text="Last Name", anchor='w').grid(row=4, column=0, columnspan=2)
+        entryLastName = tk.Entry(self)
+        entryLastName.grid(row=4, column=2, columnspan=2)
+        labelSource = tk.Label(self, width=20, text="Source", anchor='w').grid(row=5, column=0, columnspan=2)
+        entrySource = tk.Entry(self)
+        entrySource.grid(row=5, column=2, columnspan=2)
+        labelUserSince = tk.Label(self, width=20, text="Account Since", anchor='w').grid(row=6, column=0, columnspan=2)
+        entryUserSince = tk.Entry(self)
+        entryUserSince.grid(row=6, column=2, columnspan=2)
+        entryUserSince.insert(tk.END, "YYYY-MM-DD hh:mm:ss")
+        labelContactList = tk.Label(self, width=20, text="Eventbrite Contact List", anchor='w').grid(row=7, column=0, columnspan=2)
+        entryContactList = tk.Entry(self)
+        entryContactList.grid(row=7, column=2, columnspan=2)
+        labelAddedDate = tk.Label(self, width=20, text="Added Date", anchor='w').grid(row=8, column=0,columnspan=2)
+        entryAddedDate = tk.Entry(self)
+        entryAddedDate.grid(row=8, column=2, columnspan=2)
+        labelRemovedReason = tk.Label(self, width=20, text="Removed Reason", anchor='w').grid(row=9, column=0, columnspan=2)
+        entryRemovedReason = tk.Entry(self)
+        entryRemovedReason.grid(row=9, column=2, columnspan=2)
+        labelRemovedDate = tk.Label(self, width=20, text="Remove Date", anchor='w').grid(row=10, column=0,columnspan=2)
+        entryRemovedDate = tk.Entry(self)
+        entryRemovedDate.grid(row=10, column=2, columnspan=2)
+        labelNote = tk.Label(self, width=20, text="Note", anchor='w').grid(row=11, column=0,columnspan=2)
+        entryNote = tk.Entry(self)
+        entryNote.grid(row=11, column=2, columnspan=2)
 
-        def makeform(root, fields):
-            entries = []
-            for field in fields:
-                row = tk.Frame(root)
-                lab = tk.Label(row, width=15, text=field, anchor='w')
-                ent = tk.Entry(row)
-                row.pack(side='top', fill='x', padx=5, pady=5)
-                lab.pack(side='left')
-                ent.pack(side='right', expand='yes', fill='x')
-                entries.append((field, ent))
-            return entries
+        buttonSubmit = tk.Button(self, text="Submit", command=lambda: find())
+        buttonSubmit.grid(row=15)
+        #buttonClear = tk.Button(self, text="Clear", command=)
 
-        fields = 'Email Address', 'First Name', 'Last Name'
-        ents = makeform(self, fields)
-        self.bind('<Return>', (lambda event, e=ents: fetch(e)))
-        b1 = tk.Button(self, text='Show',
-                    command=(lambda e=ents: fetch(e)))
-        b1.pack(side='left', padx=5, pady=5)
+        def find():
+            entries = [entryEmail.get(),entryFirstName.get(),entryLastName.get(),entrySource.get(),entryUserSince.get(),entryContactList.get(),entryAddedDate.get(),entryRemovedReason.get(),entryRemovedDate.get(),entryNote.get()]
 
-        # def show_entry_fields():
-        #     print("First Name: %s\nLast Name: %s"
-        #           % (e1.get(), e2.get()))
-        # label1 = tk.Label(self, text="First Name")
-        # label1.grid(row=10)
-        # e1=tk.Entry(self)
-        # e1.insert(0, "Enter First Name")
-        # e1.grid(row=10, column=11)
-        # label2 = tk.Label(self, text="Last Name")
-        # label2.grid(row=11)
-        # e2=tk.Entry(self)
-        # e2.insert(0, "Enter Last Name")
-        # e2.grid(row=11, column=11)
-        #
-        # buttonSubmit = tk.Button(self, text='Submit', command=show_entry_fields)
-        # buttonSubmit.pack()
+            workingDBTable = "contactstest"
+            sqlStatement = "SELECT * FROM "+ workingDBTable +" WHERE"
+
+            if len(entries) == entries.count(""): popupmsg("No search criteria selected.")
+            else: pass
+
+            i = 0
+            whereClause = 0
+            values = ""
+            while i<len(entries):
+                if entries[i] =="":pass
+                else:
+                    whereClause += 1
+                    if whereClause >= 2:
+                        sqlStatement = sqlStatement + " AND"
+                        values = values + ","
+                    else: pass
+                    sqlStatement = sqlStatement + " " + contactTableFields[i] + "=%s"
+                    values = values + "'"+ entries[i] + "'"
+                i += 1
+            sql = '"' + sqlStatement + '"'
+            val = '[(' + values + ')]'
+            cursor.execute(sql, val)
+            result = cursor.fetchall()
+            print(result)
+            message = 'Code for SQL statement:\nsql = ' + sql + '\nval = ' + val + '\ncursor.execute(sql, val)'
+            popupmsg(message)
 
 class AddContactPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         pagelabel = tk.Label(self, text="Add Contact", font=LARGE_FONT)
-        pagelabel.grid(row=0, pady=10, padx=10)
+        pagelabel.grid(row=0, columnspan=4, pady=10, padx=10)
 
-        labelEmail = tk.Label(self, width=20, text="E-mail (Username)", anchor='w')
+        labelEmail = tk.Label(self, width=20, text="E-mail (Username)", anchor='w').grid(row=2, column=0, columnspan=2)
         entryEmail = tk.Entry(self)
-        labelEmail.grid(row=3, column=0)
-        entryEmail.grid(row=3, column=1)
+        entryEmail.grid(row=2, column=2, columnspan=2)
+        labelFirstName = tk.Label(self, width=20, text="First Name", anchor='w').grid(row=3, column=0, columnspan=2)
+        entryFirstName = tk.Entry(self)
+        entryFirstName.grid(row=3, column=2, columnspan=2)
+        labelLastName = tk.Label(self, width=20, text="Last Name", anchor='w').grid(row=4, column=0, columnspan=2)
+        entryLastName = tk.Entry(self)
+        entryLastName.grid(row=4, column=2, columnspan=2)
+        labelSource = tk.Label(self, width=20, text="Source", anchor='w').grid(row=5, column=0, columnspan=2)
+        entrySource = tk.Entry(self)
+        entrySource.insert(tk.END,"'uGRIDD User' if from User Management")
+        entrySource.grid(row=5, column=2, columnspan=2)
+        labelUserSince = tk.Label(self, width=20, text="Account Since", anchor='w').grid(row=6, column=0, columnspan=2)
+        entryUserSince = tk.Entry(self)
+        entryUserSince.grid(row=6, column=2, columnspan=2)
+        entryUserSince.insert(tk.END, "YYYY-MM-DD hh:mm:ss")
+        labelNote = tk.Label(self, width=20, text="Note", anchor='w').grid(row=7, column=0, columnspan=2)
+        entryNote = tk.Entry(self)
+        entryNote.grid(row=7, column=2, columnspan=2)
+
         buttonSubmit = tk.Button(self, text="Submit", command=lambda: callback())
         buttonSubmit.grid(row=10)
 
         def callback():
-            email = entryEmail.get()
-            if re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                popupmsg("Added Email:" + email)
+            entries = {
+                "email" : entryEmail.get(),
+                "firstname" : entryFirstName.get(),
+                "lastname" : entryLastName.get(),
+                "source" : entrySource.get(),
+                "usersince" : entryUserSince.get(),
+                "note": entryNote.get()
+            }
+            invalidEntries = []
+
+            workingDBTable = "contactstest"
+            sqlStatement = '"INSERT INTO ' + workingDBTable + ' (EmailAddress,FirstName,LastName,Source,UserSince,EventbriteContactList,AddedDate,RemovedReason,RemoveDate,Note) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"'
+
+            for i in entries:
+                if entries[i] =="":
+                    entries[i] = None
+                else: pass
+
+            #Require email entry
+            if entries["email"] == None: popupmsg("Email is required.")
             else:
-                popupmsg("Invalid E-mail: " + email)
+                #Check if the email is already in database
+                emailFound = False
+
+                sql = "SELECT COUNT(*) FROM contactstest WHERE EmailAddress='"+ entries["email"] +"'"
+
+
+                if emailFound:
+                    popupmsg("Email found in table. Duplicate email addresses not allowed.")
+                else:
+                    #Check for correct email format
+                    if re.match(r"[^@]+@[^@]+\.[^@]+", entries["email"]): pass
+                    else: invalidEntries.append("Invalid email format")
+
+                    #Check for correct date format
+                    if entries["usersince"] == None: pass
+                    else:
+                        try: datetime.strptime(entries["usersince"], '%Y-%m-%d %H:%M:%S')
+                        except ValueError: invalidEntries.append("Invalid date format (Account Since)")
+                        else: pass
+
+                    if len(invalidEntries) == 0:
+                        #All checks OK, create SQL Statement
+                        sql = sqlStatement
+                        val = [(entries["email"], entries["firstname"], entries["lastname"], entries["source"], entries["usersince"], None,datetime.now().strftime("%Y-%m-%d %H:%M:%S"), None, None, entries["note"])]
+                        #mycursor.executemany(sql, val)
+                        message = "Code for SQL statement:\nsql = " + sql +"\nval = " + str(val) + "\nmycursor.executemany(sql, val)"
+                        popupmsg(message)
+                    else:
+                        #Prompt for corrections
+                        message = "INVALID ENTRIES:"
+                        for i in invalidEntries:
+                            message = message + "\n" + i
+                        popupmsg(message)
+
 
 class RemoveContactPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -213,9 +292,12 @@ class RemoveContactPage(tk.Frame):
 class UpdateContactPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self,parent)
-        label = tk.Label(self, text="Remove Contact Page", font=LARGE_FONT)
+        label = tk.Label(self, text="Update Contact Page", font=LARGE_FONT)
         label.pack(pady=10, padx=10)
+
 
 app = ContactsApp()
 app.geometry("600x300")
+app.protocol("WM_DELETE_WINDOW", ask_quit)
 app.mainloop()
+
