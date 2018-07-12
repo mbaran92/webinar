@@ -5,6 +5,8 @@ import datetime
 from datetime import datetime
 import re
 import connection
+import sys
+import os
 
 LARGE_FONT = ("Verdana", 12)
 NORM_FONT = ("Verdana", 10)
@@ -13,55 +15,22 @@ SMALL_FONT = ("Verdana", 8)
 contactTableFields = ["EmailAddress","FirstName","LastName","Source","UserSince","EventbriteContactList","AddedDate","RemovedReason","RemoveDate","Note"]
 contactFieldsRead = ["E-mail (Username)","First Name","Last Name","Source","Account Since","Eventbrite Contact List","Added Date","Removed Reason","Remove Date","Note"]
 workingDBTable = "contactstest"
-myDB = connection.OpenConnection()
-cursor = connection.GetCursor(myDB)
+myDB = ''
+cursor = ''
+
 
 def ask_quit():
     if messagebox.askokcancel("Quit", "Are you sure you want to quit the application?"):
-        connection.CloseConnection(myDB)
-        quit()
+        if myDB == '': pass
+        else: connection.CloseConnection(myDB)
+        app.quit()
 
-def tutorial():
-    # not program-ending error result
-
-    # def leavemini(what):
-    #     what.destroy()
-
-    def page2():
-        tut.destroy()
-        tut2 = tk.Tk()
-
-        def page3():
-            tut2.destroy()
-            tut3 = tk.Tk()
-
-            tut3.wm_title("Part 3!")
-            label=ttk.Label(tut3, text="Part 3", font=NORM_FONT)
-            label.pack(side="top", fill="x", pady=10)
-            B13=ttk.Button(tut3, text="Done!", command=tut3.destroy)
-            B13.pack()
-            tut3.mainloop()
-
-        tut2.wm_title("Part 2!")
-        label = ttk.Label(tut2, text="Part 2", font=NORM_FONT)
-        label.pack(side="top", fill="x", pady=10)
-        B1 = ttk.Button(tut2, text="Next", command=page3)
-        B1.pack()
-        tut2.mainloop()
-
-    tut = tk.Tk()
-    tut.wm_title("Tutorial")
-    label = ttk.Label(tut, text="What do you need help with?", font=NORM_FONT)
-    label.pack(side="top", fill="x", pady=10)
-
-    B1 = ttk.Button(tut, text="Overview of the application", command=page2)
-    B1.pack()
-    B2 = ttk.Button(tut, text="How do I trade with this client", command=lambda:popupmsg("Not yet completed."))
-    B2.pack()
-    B3 = ttk.Button(tut, text="Indicator Questions/Help", command=lambda:popupmsg("Not yet completed."))
-    B3.pack()
-
-    tut.mainloop()
+#def restartApp():
+#    if messagebox.askokcancel("Restart", "All entries will be erased.\nAre you sure you want to restart the application?"):
+#        if myDB == '': pass
+#        else: connection.CloseConnection(myDB)
+#        python = sys.executable
+#        os.execl(python, python, *sys.argv)
 
 class ContactsApp(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -83,8 +52,9 @@ class ContactsApp(tk.Tk):
         menubar = tk.Menu(container)
         filemenu = tk.Menu(menubar,tearoff=0)
         filemenu.add_command(label="Home", command=lambda: self.show_frame(StartPage))
-        filemenu.add_command(label="Save settings",command = lambda: messagebox.showinfo("Not yet supported","Not supported just yet!"))
+        #filemenu.add_command(label="Save settings",command = lambda: messagebox.showinfo("Not yet supported","Not supported just yet!"))
         filemenu.add_separator()
+        #filemenu.add_command(label="Restart App", command=restartApp)
         filemenu.add_command(label="Quit App", command=ask_quit)
         menubar.add_cascade(label="File", menu=filemenu)
 
@@ -97,7 +67,7 @@ class ContactsApp(tk.Tk):
         menubar.add_cascade(label="Actions", menu=actionsmenu)
 
         helpmenu = tk.Menu(menubar, tearoff=0)
-        helpmenu.add_command(label="Tutorial", command=tutorial)
+        helpmenu.add_command(label="Tutorial", command=lambda: messagebox.showinfo("Not yet supported","Not supported just yet!"))
         menubar.add_cascade(label="Help", menu=helpmenu)
 
         tk.Tk.config(self,menu=menubar)
@@ -105,6 +75,11 @@ class ContactsApp(tk.Tk):
     def show_frame(self, cont):
         frame = self.frames[cont]
         frame.tkraise()
+
+    def createConnection(self):
+        myDB = connection.OpenConnection()
+        cursor = myDB.cursor()
+
 
 
 class StartPage(tk.Frame):
@@ -114,6 +89,9 @@ class StartPage(tk.Frame):
         label.pack(pady=10, padx=10)
 
         # ADD WELCOME TEXT HERE
+
+        tk.Button(self, text="Open Connection", command=lambda: controller.createConnection()).pack()
+
 
 class SearchContactsPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -178,9 +156,12 @@ class SearchContactsPage(tk.Frame):
                     val.append(entries[i])
                 i += 1
             sql = sql + " LIMIT 10"
-            cursor.execute(sql, val)
-            result = cursor.fetchall()
-            showResults(result)
+            if cursor == '':
+                messagebox.showerror("Error", "Not connected to database.")
+            else:
+                cursor.execute(sql, val)
+                result = cursor.fetchall()
+                showResults(result)
 
         def clear():
             entryEmail.delete(0, tk.END)
@@ -265,48 +246,51 @@ class AddContactPage(tk.Frame):
 
                 sql = "SELECT COUNT(*) FROM "+ workingDBTable +" WHERE EmailAddress=%s"
                 val= [entries["email"]]
-                cursor.execute(sql,val)
-                result = cursor.fetchall()
-                if result[0][0] > 0:
-                    emailFound = True
-                else: pass
-
-                if emailFound:
-                    messagebox.showerror("Error","Email found in table. Duplicate email addresses not allowed.")
+                if cursor == '':
+                    messagebox.showerror("Error", "Not connected to database.")
                 else:
-                    #Check for correct email format
-                    if re.match(r"[^@]+@[^@]+\.[^@]+", entries["email"]): pass
-                    else: invalidEntries.append("Invalid email format")
+                    cursor.execute(sql,val)
+                    result = cursor.fetchall()
+                    if result[0][0] > 0:
+                        emailFound = True
+                    else: pass
 
-                    #Check for correct date format
-                    if entries["usersince"] == None: pass
+                    if emailFound:
+                        messagebox.showerror("Error","Email found in table. Duplicate email addresses not allowed.")
                     else:
-                        try: datetime.strptime(entries["usersince"], '%Y-%m-%d %H:%M:%S')
-                        except ValueError: invalidEntries.append("Invalid date format (Account Since)")
-                        else: pass
+                        #Check for correct email format
+                        if re.match(r"[^@]+@[^@]+\.[^@]+", entries["email"]): pass
+                        else: invalidEntries.append("Invalid email format")
 
-                    if len(invalidEntries) == 0:
-                        #All checks OK, run SQL Statement
-                        val = [(entries["email"], entries["firstname"], entries["lastname"], entries["source"], entries["usersince"], None,datetime.now().strftime("%Y-%m-%d %H:%M:%S"), None, None, entries["note"])]
-                        cursor.executemany(sqlStatement, val)
-                        sql = "SELECT * FROM "+ workingDBTable +" WHERE EmailAddress=%s"
-                        val = [entries["email"]]
-                        cursor.execute(sql,val)
-                        result = cursor.fetchall()
+                        #Check for correct date format
+                        if entries["usersince"] == None: pass
+                        else:
+                            try: datetime.strptime(entries["usersince"], '%Y-%m-%d %H:%M:%S')
+                            except ValueError: invalidEntries.append("Invalid date format (Account Since)")
+                            else: pass
 
-                        tk.Label(self, text="Entry added", font=LARGE_FONT).grid(row=20, columnspan=4, padx=10)
-                        textbox = tk.Text(self, height=5, width=75)
-                        scrollbar = tk.Scrollbar(self, command=textbox.yview)
-                        textbox.grid(row=25, columnspan=4)
-                        scrollbar.grid(row=25, column=4, sticky='ns')
-                        textbox.config(yscrollcommand=scrollbar.set)
-                        textbox.insert(tk.END, str(result))
-                    else:
-                        #Prompt for corrections
-                        message = "INVALID ENTRIES:"
-                        for i in invalidEntries:
-                            message = message + "\n" + i
-                        messagebox.showerror("Error",message)
+                        if len(invalidEntries) == 0:
+                            #All checks OK, run SQL Statement
+                            val = [(entries["email"], entries["firstname"], entries["lastname"], entries["source"], entries["usersince"], None,datetime.now().strftime("%Y-%m-%d %H:%M:%S"), None, None, entries["note"])]
+                            cursor.executemany(sqlStatement, val)
+                            sql = "SELECT * FROM "+ workingDBTable +" WHERE EmailAddress=%s"
+                            val = [entries["email"]]
+                            cursor.execute(sql,val)
+                            result = cursor.fetchall()
+
+                            tk.Label(self, text="Entry added", font=LARGE_FONT).grid(row=20, columnspan=4, padx=10)
+                            textbox = tk.Text(self, height=5, width=75)
+                            scrollbar = tk.Scrollbar(self, command=textbox.yview)
+                            textbox.grid(row=25, columnspan=4)
+                            scrollbar.grid(row=25, column=4, sticky='ns')
+                            textbox.config(yscrollcommand=scrollbar.set)
+                            textbox.insert(tk.END, str(result))
+                        else:
+                            #Prompt for corrections
+                            message = "INVALID ENTRIES:"
+                            for i in invalidEntries:
+                                message = message + "\n" + i
+                            messagebox.showerror("Error",message)
 
         def clear():
             entryEmail.delete(0, tk.END)
@@ -335,19 +319,22 @@ class UpdateContactPage(tk.Frame):
             else:
                 sql = "SELECT COUNT(*) FROM " + workingDBTable + " WHERE EmailAddress=%s"
                 val = [email]
-                cursor.execute(sql,val)
-                result = cursor.fetchall()
-                if result[0][0] == 1:
-                    # Entry found
-                    foundFields = []
-                    for i in contactTableFields:
-                        sql = "SELECT " + i + " FROM " + workingDBTable + " WHERE EmailAddress=%s"
-                        cursor.execute(sql, val)
-                        result = cursor.fetchall()
-                        foundFields.append(result[0][0])
-                    update(foundFields, email)
+                if cursor == '':
+                    messagebox.showerror("Error", "Not connected to database.")
                 else:
-                    messagebox.showerror("Error", "Email not found.")
+                    cursor.execute(sql,val)
+                    result = cursor.fetchall()
+                    if result[0][0] == 1:
+                        # Entry found
+                        foundFields = []
+                        for i in contactTableFields:
+                            sql = "SELECT " + i + " FROM " + workingDBTable + " WHERE EmailAddress=%s"
+                            cursor.execute(sql, val)
+                            result = cursor.fetchall()
+                            foundFields.append(result[0][0])
+                        update(foundFields, email)
+                    else:
+                        messagebox.showerror("Error", "Email not found.")
 
         entryEmail = tk.Entry(self, width=30)
         entryFirstName = tk.Entry(self, width=30)
@@ -514,18 +501,21 @@ class RemoveContactPage(tk.Frame):
             else:
                 sql = "SELECT * FROM " + workingDBTable + " WHERE EmailAddress=%s"
                 val = [email]
-                cursor.execute(sql,val)
-                result = cursor.fetchall()
-                if result == []:
-                    #Entry not found
-                    messagebox.showerror("Error", "Email not found.")
+                if cursor == '':
+                    messagebox.showerror("Error", "Not connected to database.")
                 else:
-                    # Entry found
-                    # Check if removed already
-                    if result[0][7] == None:
-                        getReason(result[0])
+                    cursor.execute(sql,val)
+                    result = cursor.fetchall()
+                    if result == []:
+                        #Entry not found
+                        messagebox.showerror("Error", "Email not found.")
                     else:
-                        messagebox.showerror("Error", "This email corresponds to an entry which has RemovedReason and RemovedDate fields.\nIf you need to edit those fields, use Update Contact under the Actions menu.")
+                        # Entry found
+                        # Check if removed already
+                        if result[0][7] == None:
+                            getReason(result[0])
+                        else:
+                            messagebox.showerror("Error", "This email corresponds to an entry which has RemovedReason and RemovedDate fields.\nIf you need to edit those fields, use Update Contact under the Actions menu.")
 
         entryRemovedReason = tk.Entry(self, width=50)
 
@@ -555,8 +545,11 @@ class RemoveContactPage(tk.Frame):
                     print(str(result))
                 else: pass
 
+
 app = ContactsApp()
 app.geometry("650x600")
 app.protocol("WM_DELETE_WINDOW", ask_quit)
 app.mainloop()
+
+
 
