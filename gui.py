@@ -583,7 +583,14 @@ class RemoveContactPage(tk.Frame):
                     val1 = [entry[0]]
                     controller.cursor.execute(sql1, val1)
                     result = controller.cursor.fetchall()
-                    print(str(result))
+
+                    tk.Label(self, text="Entry marked 'removed'", font=LARGE_FONT).grid(row=50, columnspan=3, padx=10)
+                    textbox = tk.Text(self, height=5, width=70)
+                    scrollbar = tk.Scrollbar(self, command=textbox.yview)
+                    textbox.grid(row=55, columnspan=3)
+                    scrollbar.grid(row=55, column=3, sticky='ns')
+                    textbox.config(yscrollcommand=scrollbar.set)
+                    textbox.insert(tk.END, str(result))
                 else: pass
 
 
