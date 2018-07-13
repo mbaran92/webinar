@@ -4,7 +4,7 @@ from tkinter import ttk
 import datetime
 from datetime import datetime
 import re
-import connection
+import mysql.connector
 import sys
 import os
 
@@ -15,15 +15,7 @@ SMALL_FONT = ("Verdana", 8)
 contactTableFields = ["EmailAddress","FirstName","LastName","Source","UserSince","EventbriteContactList","AddedDate","RemovedReason","RemoveDate","Note"]
 contactFieldsRead = ["E-mail (Username)","First Name","Last Name","Source","Account Since","Eventbrite Contact List","Added Date","Removed Reason","Remove Date","Note"]
 workingDBTable = "contactstest"
-myDB = ''
-cursor = ''
 
-
-def ask_quit():
-    if messagebox.askokcancel("Quit", "Are you sure you want to quit the application?"):
-        if myDB == '': pass
-        else: connection.CloseConnection(myDB)
-        app.quit()
 
 #def restartApp():
 #    if messagebox.askokcancel("Restart", "All entries will be erased.\nAre you sure you want to restart the application?"):
@@ -35,6 +27,12 @@ def ask_quit():
 class ContactsApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
+
+        self.myDB = ''
+        self.cursor = ''
+
+        self.wm_protocol("WM_DELETE_WINDOW", lambda: self.ask_quit())
+
         tk.Tk.wm_title(self,"Contacts Client")
 
         container = tk.Frame(self)
@@ -55,7 +53,7 @@ class ContactsApp(tk.Tk):
         #filemenu.add_command(label="Save settings",command = lambda: messagebox.showinfo("Not yet supported","Not supported just yet!"))
         filemenu.add_separator()
         #filemenu.add_command(label="Restart App", command=restartApp)
-        filemenu.add_command(label="Quit App", command=ask_quit)
+        filemenu.add_command(label="Quit App", command=lambda: self.ask_quit())
         menubar.add_cascade(label="File", menu=filemenu)
 
         actionsmenu = tk.Menu(menubar, tearoff=0)
@@ -76,10 +74,53 @@ class ContactsApp(tk.Tk):
         frame = self.frames[cont]
         frame.tkraise()
 
-    def createConnection(self):
-        myDB = connection.OpenConnection()
-        cursor = myDB.cursor()
+    def openConnection(self):
+        root = tk.Tk()
+        root.wm_title("CONNECTION")
+        tk.Label(root, text="Host:").grid(row=1)
+        tk.Label(root, text="User:").grid(row=2)
+        tk.Label(root, text="Password:").grid(row=3)
+        tk.Label(root, text="Database:").grid(row=4)
+        e1 = tk.Entry(root)
+        e2 = tk.Entry(root)
+        e3 = tk.Entry(root, show="*")
+        e4 = tk.Entry(root)
+        e1.grid(row=1, column=1)
+        e2.grid(row=2, column=1)
+        e3.grid(row=3, column=1)
+        e4.grid(row=4, column=1)
 
+        def connect():
+            h = e1.get()
+            u = e2.get()
+            p = e3.get()
+            d = e4.get()
+            while True:
+                try:
+                    self.myDB = mysql.connector.connect(host=h, user=u, passwd=p, database=d)
+                    break
+                except mysql.connector.Error as err:
+                    messagebox.showerror("Error", "Something went wrong: {}".format(err))
+            self.cursor = self.myDB.cursor()
+            root.destroy()
+
+        tk.Button(root, text="Connect", command=lambda: connect()).grid(row=5)
+        root.mainloop()
+
+    def createConnection(self):
+        self.openConnection()
+
+    def closeConnection(self):
+        self.myDB.commit()
+        self.myDB.close()
+
+    def ask_quit(self):
+        if messagebox.askokcancel("Quit", "Are you sure you want to quit the application?"):
+            if self.myDB == '':
+                pass
+            else:
+                self.closeConnection()
+            quit()
 
 
 class StartPage(tk.Frame):
@@ -156,11 +197,11 @@ class SearchContactsPage(tk.Frame):
                     val.append(entries[i])
                 i += 1
             sql = sql + " LIMIT 10"
-            if cursor == '':
+            if controller.cursor == '':
                 messagebox.showerror("Error", "Not connected to database.")
             else:
-                cursor.execute(sql, val)
-                result = cursor.fetchall()
+                controller.cursor.execute(sql, val)
+                result = controller.cursor.fetchall()
                 showResults(result)
 
         def clear():
@@ -246,11 +287,11 @@ class AddContactPage(tk.Frame):
 
                 sql = "SELECT COUNT(*) FROM "+ workingDBTable +" WHERE EmailAddress=%s"
                 val= [entries["email"]]
-                if cursor == '':
+                if controller.cursor == '':
                     messagebox.showerror("Error", "Not connected to database.")
                 else:
-                    cursor.execute(sql,val)
-                    result = cursor.fetchall()
+                    controller.cursor.execute(sql,val)
+                    result = controller.cursor.fetchall()
                     if result[0][0] > 0:
                         emailFound = True
                     else: pass
@@ -272,11 +313,11 @@ class AddContactPage(tk.Frame):
                         if len(invalidEntries) == 0:
                             #All checks OK, run SQL Statement
                             val = [(entries["email"], entries["firstname"], entries["lastname"], entries["source"], entries["usersince"], None,datetime.now().strftime("%Y-%m-%d %H:%M:%S"), None, None, entries["note"])]
-                            cursor.executemany(sqlStatement, val)
+                            controller.cursor.executemany(sqlStatement, val)
                             sql = "SELECT * FROM "+ workingDBTable +" WHERE EmailAddress=%s"
                             val = [entries["email"]]
-                            cursor.execute(sql,val)
-                            result = cursor.fetchall()
+                            controller.cursor.execute(sql,val)
+                            result = controller.cursor.fetchall()
 
                             tk.Label(self, text="Entry added", font=LARGE_FONT).grid(row=20, columnspan=4, padx=10)
                             textbox = tk.Text(self, height=5, width=75)
@@ -319,18 +360,18 @@ class UpdateContactPage(tk.Frame):
             else:
                 sql = "SELECT COUNT(*) FROM " + workingDBTable + " WHERE EmailAddress=%s"
                 val = [email]
-                if cursor == '':
+                if controller.cursor == '':
                     messagebox.showerror("Error", "Not connected to database.")
                 else:
-                    cursor.execute(sql,val)
-                    result = cursor.fetchall()
+                    controller.cursor.execute(sql,val)
+                    result = controller.cursor.fetchall()
                     if result[0][0] == 1:
                         # Entry found
                         foundFields = []
                         for i in contactTableFields:
                             sql = "SELECT " + i + " FROM " + workingDBTable + " WHERE EmailAddress=%s"
-                            cursor.execute(sql, val)
-                            result = cursor.fetchall()
+                            controller.cursor.execute(sql, val)
+                            result = controller.cursor.fetchall()
                             foundFields.append(result[0][0])
                         update(foundFields, email)
                     else:
@@ -462,11 +503,11 @@ class UpdateContactPage(tk.Frame):
                         # WHERE condition
                         # ** condition == 'EmailAddress = %s'
                         sql = sql + " WHERE EmailAddress='" + emailID + "'"
-                        cursor.execute(sql, val)
+                        controller.cursor.execute(sql, val)
                         sql1 = "SELECT * FROM " + workingDBTable + " WHERE EmailAddress=%s"
                         val1 = [updateEntries[0]]
-                        cursor.execute(sql1, val1)
-                        result = cursor.fetchall()
+                        controller.cursor.execute(sql1, val1)
+                        result = controller.cursor.fetchall()
 
                         tk.Label(self, text="Entry updated", font=LARGE_FONT).grid(row=50, columnspan=3, padx=10)
                         textbox = tk.Text(self, height=5, width=70)
@@ -501,11 +542,11 @@ class RemoveContactPage(tk.Frame):
             else:
                 sql = "SELECT * FROM " + workingDBTable + " WHERE EmailAddress=%s"
                 val = [email]
-                if cursor == '':
+                if controller.cursor == '':
                     messagebox.showerror("Error", "Not connected to database.")
                 else:
-                    cursor.execute(sql,val)
-                    result = cursor.fetchall()
+                    controller.cursor.execute(sql,val)
+                    result = controller.cursor.fetchall()
                     if result == []:
                         #Entry not found
                         messagebox.showerror("Error", "Email not found.")
@@ -537,19 +578,15 @@ class RemoveContactPage(tk.Frame):
                 if messagebox.askyesno("Confirm", "Are you sure you want to remove this entry?"):
                     sql = "UPDATE " + workingDBTable + " SET " + contactTableFields[7] + "=%s, " + contactTableFields[8] + "=%s WHERE EmailAddress='" + entry[0] + "'"
                     val = [removedReason, datetime.now().strftime("%Y-%m-%d %H:%M:%S")]
-                    cursor.execute(sql, val)
+                    controller.cursor.execute(sql, val)
                     sql1 = "SELECT * FROM " + workingDBTable + " WHERE EmailAddress=%s"
                     val1 = [entry[0]]
-                    cursor.execute(sql1, val1)
-                    result = cursor.fetchall()
+                    controller.cursor.execute(sql1, val1)
+                    result = controller.cursor.fetchall()
                     print(str(result))
                 else: pass
 
 
 app = ContactsApp()
 app.geometry("650x600")
-app.protocol("WM_DELETE_WINDOW", ask_quit)
 app.mainloop()
-
-
-
